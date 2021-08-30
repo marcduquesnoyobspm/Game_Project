@@ -6,9 +6,11 @@ Created on Wed Aug 25 23:32:32 2021
 @author: marc
 """
 
-import pygame
 import time
-from game import *
+import pygame
+import numpy as np
+import glob
+import os
 from main import *
 
 pygame.init()
@@ -25,7 +27,8 @@ class Game_Logo():
         self.size = self.image.get_size()
         
     def get_image(self):
-        image = pygame.image.load("Assets/title.png")
+        image = pygame.image.load("Assets/test.gif").convert_alpha()
+        image.set_colorkey((0,0,0))
         return image
     
     def draw(self):
@@ -68,6 +71,9 @@ class Main_Menu():
         self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
         self.names = ["New game","Continue","Settings","Quit"]
         self.saved = False
+        self.menu_bg_frames_paths = np.sort(glob.glob(os.path.abspath(os.getcwd()) + "/Assets/background/*.gif"))
+        self.menu_bg_frames = [pygame.image.load(path).convert_alpha() for path in self.menu_bg_frames_paths]
+        self.iteration = 0
         self.menu_bg = self.get_bg()
         self.new_game_button = Button(self.screen, "New game",(self.WIDTH/2, self.HEIGHT*3/5))
         self.continue_button = Button(self.screen, "Continue",(self.WIDTH/2, self.HEIGHT*3/5 + 50))
@@ -77,7 +83,10 @@ class Main_Menu():
         
         
     def get_bg(self):
-        menu_bg = pygame.transform.scale(pygame.image.load("Assets/Background/single_background.png").convert(),(self.WIDTH, self.HEIGHT))
+        menu_bg = self.menu_bg_frames[self.iteration]
+        self.iteration += 1
+        if self.iteration >= len(self.menu_bg_frames):
+            self.iteration = 0
         return menu_bg
     
     def draw(self):
@@ -147,8 +156,8 @@ class Exit_Menu():
         self.running = False
         self.screen = screen
         self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
-        self.font = "Retro Gaming.ttf"
-        self.color = "black"
+        self.font = "NeonSans.ttf"
+        self.color = "Pink"
         self.text = "Are you sure you want to quit ?"
         self.text_render, self.text_size, self.text_surface = self.get_text_params()
         self.bg_size = (self.text_size[0] + 100, self.HEIGHT/4.)
@@ -202,8 +211,8 @@ class Settings_Menu():
         self.running = False
         self.screen = screen
         self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
-        self.font = "Retro Gaming.ttf"
-        self.color = "black"
+        self.font = "NeonSans.ttf"
+        self.color = "Pink"
         self.title = "Settings"
         self.settings_menu = ["Brightness", "Volume", "Contrast", "Keybinds"]
         self.bg_size = (self.WIDTH/2., self.HEIGHT/2.)
@@ -269,8 +278,8 @@ class Game_Menu():
         self.running = False
         self.screen = screen
         self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
-        self.font = "Retro Gaming.ttf"
-        self.color = "black"
+        self.font = "NeonSans.ttf"
+        self.color = "Pink"
         self.title = "Pause"
         self.title_render, self.title_size, self.title_surface = self.get_title_params()
         self.bg_size = (self.title_size[0] + 20, self.title_size[1] + 220)
@@ -307,10 +316,13 @@ class Game_Menu():
         mouse = pygame.mouse.get_pos()
         if event.type == pygame.QUIT:
             pygame.quit()
-        if event.type == pygame.KEYDOWN :
-            if event.key == pygame.K_ESCAPE :
-                self.running = False
+        
+        if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+
         if event.type == pygame.MOUSEBUTTONDOWN :
+            
             if pygame.mouse.get_pressed()[0] :
                 if self.resume_button.rect.collidepoint(mouse):
                     self.running = False 
@@ -321,12 +333,7 @@ class Game_Menu():
                         settings_menu.draw()
                         main_menu.is_hovered(settings_menu.buttons)
                         for event1 in pygame.event.get():
-                            settings_menu.manage_events(event1,main_menu,settings_menu,exit_menu,game_menu)   
-                    
-                # if self.menu_button.rect.collidepoint(mouse):
-                #     self.running = False
-                #     game.game_running = False
-                    
+                            settings_menu.manage_events(event1,main_menu,settings_menu,exit_menu,game_menu)                      
                     
                 if self.quit_button.rect.collidepoint(mouse):
                     exit_menu.running = True

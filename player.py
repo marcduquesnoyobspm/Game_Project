@@ -8,9 +8,10 @@ Created on Tue Aug 24 19:41:32 2021
 
 
 import pygame
-import time
 import numpy as np
 import glob
+import os
+
 
 pygame.init()
 
@@ -25,17 +26,17 @@ class Player(pygame.sprite.Sprite):
         self.is_falling = False
         self.new_anim = False
         self.mirror = False
-        self.action = 'Idle'
+        self.action = "Idle"
         self.actions_names = ["Dash", "Death", "GetHit", "Idle", "Jump", "Run", "Slash_no_effect", "Slash_only_effect", "Slash", "Blaster"] 
-        self.sprites = {}
-        self.get_sprites()
-        self.sprites["Slash"].append(self.sprites["Slash"][0])
-        self.group = self.sprites["Idle"]
+        self.sprites = self.get_sprites()
+        del self.sprites["Jump"][0]
+        self.group = self.sprites[self.action]
         self.health = health
         self.attack = attack
         self.speed = 10
-        self.jump_speed = 10
+        self.jump_speed = -120
         self.jump_time = 0
+        self.tick = 0
         self.image = self.group[0]
         self.rect = self.image.get_rect()
         self.size = self.image.get_size()
@@ -45,34 +46,36 @@ class Player(pygame.sprite.Sprite):
         self.cooldown_idle = 300
         self.offset = 0
         self.y_origin = self.y
-        self.last = pygame.time.get_ticks()
         
     def get_sprites(self):
-        sprites_paths = np.sort(glob.glob("/home/marc/Projects/Game/Assets/Sprites/Striker/*"))
+        dir = os.path.abspath(os.getcwd())
+        sprites_paths = np.sort(glob.glob(dir + "/Assets/Sprites/Striker/*"))
+
+        sprites = {}
         sprites_set = [pygame.image.load(path).convert_alpha() for path in sprites_paths]
         for name, i in zip(self.actions_names, range(len(sprites_set))):
-            self.sprites[name] = []
-            
+            sprites[name] = []
             for j in range(16):
                 if i == 6 or i == 7:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*128,0,128,96])))
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*128,0,128,96])))
                 if i == 1:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
             for j in range(4):
                 if i == 2:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
             for j in range(12):
-                if i == 0 or i == 4:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
+                if i == 0:
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
             for j in range(8): 
                 if i == 8:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*128,0,128,96])))
-                if i == 3 or i == 5:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*128,0,128,96])))
+                if i == 3 or i == 5 or i == 4:
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([j*96,0,96,96])))
             for j in range(6):
                 if i == 9:
-                    self.sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([(10+j)*128,0,128,96])))
-                
+                    sprites[name].append(pygame.transform.scale2x(sprites_set[i].subsurface([(10+j)*128,0,128,96])))
+        return sprites
+
     def get_damaged(self, hit):
         self.health = self.health - hit
         
@@ -83,31 +86,63 @@ class Player(pygame.sprite.Sprite):
         self.x, self.y = self.x + deplacement[0]*self.speed, self.y + deplacement[1]*self.speed
         
     def jump(self):
-        pass
+        if self.is_jumping:
+            self.jump_time += self.tick/1000
+            self.y = 240*(self.jump_time**2)/2 + self.jump_speed*self.jump_time + self.y_origin
+            print(self.jump_time,self.y_origin,self.y)
+            if self.y >= self.y_origin:
+                self.is_jumping = False
+                self.jump_time = 0
     
     def animation(self):
-        self.jump_sprite += 0.1
-        self.current_sprite += 0.1
-        if self.current_sprite >= len(self.group):
-            self.current_sprite = 0
-            self.new_anim = False
-            if self.is_running or self.is_slashing or self.is_blastering:
-                pass
+        if self.is_blastering:
+            length = len(self.sprites["Blaster"])
+        if self.is_slashing:
+            length = len(self.sprites["Slash"])
+        if self.is_blastering == False and self.is_slashing == False:
+            if self.is_running:
+                length = len(self.sprites["Run"])
             else:
-                self.group = self.sprites["Idle"]
-        if self.jump_sprite >= len(self.sprites["Jump"]):
-            self.jump_sprite = 0
-            if self.is_jumping:
-                pass
-            else:
-                self.group = self.sprites["Idle"]
+                length = len(self.sprites["Idle"])
         if self.action == "Jump":
             self.image = self.group[np.int(self.jump_sprite)]
         else:
-            self.image = self.group[np.int(self.current_sprite)]
+            if self.current_sprite < length:
+                self.image = self.group[np.int(self.current_sprite)]
+        self.jump_sprite += 0.15
+        self.current_sprite += 0.15
+
+        if self.mirror:
+            self.image = pygame.transform.flip(self.image, True, False)
+        else:
+            pass
+        self.rect = self.image.get_rect()
+        self.size = self.image.get_size()
+        
+        if self.is_blastering or self.is_slashing:
+            self.offset = 128 - 96
+        else:
+            self.offset = 0
+        if self.mirror:
+            self.rect.center = (self.x - self.offset, self.y)
+        else:
+            self.rect.center = (self.x + self.offset, self.y)
+            
+        if self.current_sprite >= length:
+            self.current_sprite = 0
+            self.new_anim = False
+            self.is_running = False
+            self.is_blastering = False
+            self.is_slashing = False
+
+        if self.jump_sprite >= len(self.sprites["Jump"]):
+            self.jump_sprite = 0
+            
+        
+        
+        self.jump()
             
     def def_group(self):
-        now = pygame.time.get_ticks()
         if self.new_anim:
             self.current_sprite = 0
             self.new_anim = False
@@ -120,30 +155,24 @@ class Player(pygame.sprite.Sprite):
         else:
             if self.is_jumping:
                 self.action = "Jump"
-            elif self.is_running:
-                self.action = "Run"
             else:
-                if now - self.last > 0.2:
+                if self.is_running:
+                    self.action = "Run"
+                else: 
                     self.action = "Idle"
-        self.group = self.sprites[self.action]
-        self.last = now
+                    
+        
+
                 
     def update(self):
+        
+        print("Before")
+        print(self.action)
         self.def_group()
-        print(self.action,self.new_anim,self.is_running,self.is_jumping,self.is_slashing,self.is_blastering,self.current_sprite)
+        print("After")
+        print(self.action)
+        self.group = self.sprites[self.action]
         self.animation()
-        self.rect = self.image.get_rect()
-        self.size = self.image.get_size()
         
-        if self.action == "Sword" or self.action == "Blaster":
-            self.offset = 128 - 96
-        else:
-            self.offset = 0
-        if self.mirror:
-            self.rect.center = (self.x - self.offset, self.y)
-        else:
-            self.rect.center = (self.x + self.offset, self.y)
         
-    
-    
-    
+        

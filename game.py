@@ -8,30 +8,24 @@ Created on Sun Aug 22 11:08:56 2021
 
 
 import pygame
-import numpy as np
+import time
 from player import *
-from menus import *
-from main import *
-
-
-pygame.init()
-
+import menus
 
 class MainLoop():
     
     def __init__(self):
-        self.WIDTH, self.HEIGHT = 1080,720
+        self.WIDTH, self.HEIGHT = 1920,1020
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         self.mouse = pygame.mouse.get_pos()
-        self.main_menu = Main_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.main_menu_bg = self.main_menu.menu_bg
-        self.game_bg = pygame.image.load("Assets/Background/medieval-15.jpg").convert_alpha()
+        self.main_menu = menus.Main_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.game_bg = pygame.transform.scale(pygame.image.load("Assets/ENVIRONMENT/background/skyline.png"), (750*3, 240*3)).convert_alpha()
         self.game_bg_rect = self.game_bg.get_rect()
         self.game_bg_size = self.game_bg.get_size()
-        self.game_logo = Game_Logo(self.screen,(self.WIDTH/2, self.HEIGHT*1/10))
-        self.exit_menu = Exit_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.settings_menu = Settings_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.game_menu = Game_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.game_logo = menus.Game_Logo(self.screen,(self.WIDTH/2, self.HEIGHT*1/10))
+        self.exit_menu = menus.Exit_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.settings_menu = menus.Settings_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.game_menu = menus.Game_Menu(self.screen, self.WIDTH, self.HEIGHT)
         self.clock = pygame.time.Clock()
         self.running = True
         self.game_running = False
@@ -56,19 +50,15 @@ class MainLoop():
                 if event1.type == pygame.MOUSEBUTTONDOWN :
                     if pygame.mouse.get_pressed()[0] :
                         if self.game_menu.menu_button.rect.collidepoint(mouse):
-                            self.screen.fill(0)
-                            pygame.display.update()
-                            time.sleep(0.5)
                             self.game_menu.running = False
                             self.game_running = False
-                            
+                                   
             
             else:
                 self.game_menu.manage_events(event1,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)             
         
     def manage_events(self,event):
         if self.game_menu.running == False:
-            mouse = pygame.mouse.get_pos()
             if event.type == pygame.QUIT:
                 self.game_running = False
                 self.running = False
@@ -77,20 +67,33 @@ class MainLoop():
                 if event.key == pygame.K_ESCAPE:
                     self.game_menu.running = True
                 
-                if event.key == pygame.K_a or event.key == pygame.K_e or event.key == pygame.K_q or pygame.K_d \
-                    or event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT or event.key == pygame.K_SPACE :
+                if event.key == pygame.K_q or pygame.K_d or event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT or event.key == pygame.K_SPACE :
                     if self.player.is_jumping or self.player.is_slashing or self.player.is_blastering or self.player.is_running:
                         pass
                     else:
-                        print("ok")
                         self.player.new_anim = True
-                        
+                                                
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_q or event.key == pygame.K_LEFT\
                     or event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                     self.player.is_running = False
+                    print("test")
                 
-
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pygame.mouse.get_pressed()[0] :
+                    if self.player.is_blastering or self.player.is_slashing:
+                        pass
+                    else:
+                        self.player.new_anim = True
+                        self.player.is_slashing = True
+                
+                    
+                if pygame.mouse.get_pressed()[2]:
+                    if self.player.is_slashing or self.player.is_blastering:
+                        pass
+                    else:
+                        self.player.new_anim = True
+                        self.player.is_blastering = True
                     
         
     def manage_pressed_keys(self):
@@ -103,20 +106,32 @@ class MainLoop():
             if pressed_key[pygame.K_q] or pressed_key[pygame.K_LEFT]:
                 if self.player.rect.center[0] <= self.WIDTH/2:
                     if self.game_bg_rect.left == 0:
-                        if self.player.rect.left > 20:
+                        if self.player.rect.left > 10:
                             player_vector[0] -= 1
+                            bg_vector[0] = 0
+                        
                     else:
+                        player_vector[0] = 0
                         bg_vector[0] += 1
+                        
                 else:
                     if self.game_bg_rect.left == 0:
                         bg_vector[0] += 1
+                        player_vector[0] = 0
+                        
                     else:
                         player_vector[0] -= 1
+                        bg_vector[0] = 0
                         
+                
+                self.player.mirror = True
                 if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
                     pass
                 else:
-                    self.player.is_running = True
+                    if self.player.is_running:
+                        pass
+                    else:
+                        self.player.is_running = True
                 
                 
     
@@ -124,14 +139,24 @@ class MainLoop():
                 if self.player.rect.center[0] < self.WIDTH/2:
                     if self.game_bg_rect.left == 0 :
                             player_vector[0] += 1
+                            bg_vector[0] = 0
+                            
                     else:
-                        bg_vector[0] -= 1
+                        bg_vector[0] -= 0
+                        player_vector[0] += 1
+                        
                 else:
-                    if self.game_bg_rect.right  > self.WIDTH:
+                    if self.game_bg_rect.right > self.WIDTH:
                         bg_vector[0] -= 1
+                        player_vector[0] = 0
+                        
                     else:
-                        if self.player.rect.right < self.WIDTH - 20:
+                        if self.player.rect.right <= self.WIDTH - 10:
                             player_vector[0] += 1
+                            bg_vector[0] = 0
+                            
+
+                self.player.mirror = False
                 if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
                     pass
                 else:
@@ -139,16 +164,24 @@ class MainLoop():
                 
                 
             if pressed_key[pygame.K_SPACE]:
+                print("is_jumping : ", self.player.is_jumping)
                 if self.player.is_slashing or self.player.is_blastering:
                     pass
                 else:
-                    self.player.is_jumping = True
+                    if self.player.is_jumping == False:
+                        self.player.jump_sprite = 0
+                        self.player.tick = self.clock.get_time()
+                        self.player.y_origin = self.player.y
+                        self.player.is_jumping = True
+                        print("jump")
+                    
                     
             if pygame.mouse.get_pressed()[0] :
                 if self.player.is_blastering:
                     pass
                 else:
                     self.player.is_slashing = True
+                print("slash")
                 
                     
             if pygame.mouse.get_pressed()[2]:
@@ -157,13 +190,22 @@ class MainLoop():
                 else:
                     self.player.is_blastering = True
                 
-                    
+            if self.player.is_jumping or self.player.is_blastering or self.player.is_slashing:
+                self.player.speed = 3
+            else:
+                self.player.speed = 10        
             self.player.move(player_vector)
             self.game_bg_move(bg_vector)
         
     def draw(self):
-        self.screen.blit(self.game_bg,self.game_bg_rect)
-        self.screen.blit(self.player.image,self.player.rect)
+        if self.game_running:
+            if self.game_bg_rect.left > 0:
+                self.game_bg_rect.left = 0
+            if self.game_bg_rect.left < self.WIDTH - self.game_bg_size[0]:
+                self.game_bg_rect.left = self.WIDTH - self.game_bg_size[0]
+            self.screen.blit(self.game_bg,(self.game_bg_rect[0],self.HEIGHT/2-self.game_bg_size[1]/2))
+            self.screen.blit(self.player.image,self.player.rect)
+            print(self.game_bg_rect[0],self.WIDTH - self.game_bg_size[0])
         if self.game_menu.running:
             self.game_menu.draw()
 
@@ -172,42 +214,46 @@ class MainLoop():
             self.game_menu_events()
         else:
             self.player.update()
+
         self.draw()
         pygame.display.update()
     
     def game_bg_move(self, deplacement):
-        self.game_bg_rect[0], self.game_bg_rect[1] = self.game_bg_rect[0] + deplacement[0]*self.player.speed, self.game_bg_rect[1] + deplacement[1]*self.player.speed
+        self.game_bg_rect[0] = self.game_bg_rect[0] + deplacement[0]*self.player.speed
     
 
     def start(self):
+        pygame.init()
+        self.clock.tick(50)
         self.running = True
         while self.running:
-            mouse = pygame.mouse.get_pos()
-            self.screen.blit(self.main_menu_bg, (0,0))
+            self.screen.blit(self.main_menu.menu_bg, (0,0))
+            self.main_menu.menu_bg = self.main_menu.get_bg()
             self.game_logo.draw()
             self.main_menu.draw()
+            pygame.display.update()
+            mouse = pygame.mouse.get_pos()
             for event in pygame.event.get():
-                    self.main_menu.manage_events(event,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)
-                    pygame.display.update()
-                    if event.type == pygame.MOUSEBUTTONDOWN :
-                        if pygame.mouse.get_pressed()[0] :
-                            if self.main_menu.new_game_button.rect.collidepoint(mouse):
-                                self.game_running = True
-                                self.run()
+                self.main_menu.manage_events(event,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)
+                pygame.display.update()
+                if event.type == pygame.MOUSEBUTTONDOWN :
+                    if pygame.mouse.get_pressed()[0] :
+                        if self.main_menu.new_game_button.rect.collidepoint(mouse):
+                            self.game_running = True
+                            self.run()
         self.quit()
         
     def run(self):
+        self.player = Player((self.WIDTH/2., self.HEIGHT/2.), 3, 1)
         self.screen.fill(0)
         pygame.display.update()
         time.sleep(0.5)
         while self.game_running:
-            self.clock.tick(60)
-            self.update()
+            self.clock.tick(50)
             for event in pygame.event.get():
                 self.manage_events(event)
-                self.update()
-                pygame.display.update()
             self.manage_pressed_keys()
+            self.update()
         pygame.display.update()
             
             
