@@ -7,6 +7,7 @@ Created on Wed Aug 25 23:32:32 2021
 """
 
 import time
+import sys
 import pygame
 import numpy as np
 import glob
@@ -14,6 +15,7 @@ import os
 from main import *
 
 pygame.init()
+
 
 class Game_Logo():
     
@@ -69,10 +71,11 @@ class Main_Menu():
         self.running = True
         self.screen = screen
         self.WIDTH, self.HEIGHT = WIDTH, HEIGHT
+        self.game_logo = Game_Logo(self.screen,(self.WIDTH/2, self.HEIGHT*1/10))
         self.names = ["New game","Continue","Settings","Quit"]
         self.saved = False
         self.menu_bg_frames_paths = np.sort(glob.glob(os.path.abspath(os.getcwd()) + "/Assets/background/*.gif"))
-        self.menu_bg_frames = [pygame.image.load(path).convert_alpha() for path in self.menu_bg_frames_paths]
+        self.menu_bg_frames = [pygame.transform.scale(pygame.image.load(path),(self.WIDTH,self.HEIGHT)).convert_alpha() for path in self.menu_bg_frames_paths]
         self.iteration = 0
         self.menu_bg = self.get_bg()
         self.new_game_button = Button(self.screen, "New game",(self.WIDTH/2, self.HEIGHT*3/5))
@@ -90,11 +93,12 @@ class Main_Menu():
         return menu_bg
     
     def draw(self):
+        self.screen.blit(self.menu_bg, (0,0))
+        self.menu_bg = self.get_bg()
         for button in self.buttons:
             self.is_hovered(self.buttons)
             button.draw()
         
-    
     def grey_continue(self):
         if self.saved == False:
             self.continue_button.image.fill((150,150,150,255), None, pygame.BLEND_RGBA_MULT)
@@ -116,14 +120,16 @@ class Main_Menu():
             
     def manage_events(self,event,main_menu,settings_menu,exit_menu,game_menu):
         mouse = pygame.mouse.get_pos()
-        
         if event.type == pygame.QUIT:
             pygame.quit()
+            sys.exit()
             
         if event.type == pygame.KEYDOWN :
             if event.key == pygame.K_ESCAPE :
                 exit_menu.running = True
                 while exit_menu.running:
+                    self.draw()
+                    self.game_logo.draw()
                     exit_menu.draw()
                     self.is_hovered(exit_menu.buttons)
                     for event1 in pygame.event.get():
@@ -136,6 +142,8 @@ class Main_Menu():
                 if self.quit_button.rect.collidepoint(mouse) :
                     exit_menu.running = True
                     while exit_menu.running:
+                        self.draw()
+                        self.game_logo.draw()
                         exit_menu.draw()
                         self.is_hovered(exit_menu.buttons)
                         for event2 in pygame.event.get():
@@ -143,6 +151,8 @@ class Main_Menu():
                 if self.settings_button.rect.collidepoint(mouse) :
                     settings_menu.running = True
                     while settings_menu.running:
+                        self.draw()
+                        self.game_logo.draw()
                         settings_menu.draw()
                         self.is_hovered(settings_menu.buttons)
                         for event3 in pygame.event.get():
@@ -192,6 +202,7 @@ class Exit_Menu():
         mouse = pygame.mouse.get_pos()
         if event.type == pygame.QUIT:
             pygame.quit()
+            sys.exit()
         if event.type == pygame.KEYDOWN :
             if event.key == pygame.K_ESCAPE :
                 self.running = False
@@ -201,6 +212,7 @@ class Exit_Menu():
                 if self.quit_button.rect.collidepoint(mouse) :
                     self.running = False
                     pygame.quit()
+                    sys.exit()
                 if self.back_button.rect.collidepoint(mouse) :
                     self.running = False
                 
@@ -262,6 +274,7 @@ class Settings_Menu():
         mouse = pygame.mouse.get_pos()
         if event.type == pygame.QUIT:
             pygame.quit()
+            sys.exit()
         if event.type == pygame.KEYDOWN :
             if event.key == pygame.K_ESCAPE :
                 self.running = False
@@ -316,13 +329,13 @@ class Game_Menu():
         mouse = pygame.mouse.get_pos()
         if event.type == pygame.QUIT:
             pygame.quit()
+            sys.exit()
         
         if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
 
         if event.type == pygame.MOUSEBUTTONDOWN :
-            
             if pygame.mouse.get_pressed()[0] :
                 if self.resume_button.rect.collidepoint(mouse):
                     self.running = False 

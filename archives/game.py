@@ -1,196 +1,281 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Aug 21 11:05:23 2021
+Created on Sun Aug 22 11:08:56 2021
 
 @author: marc
 """
 
+
 import pygame
 import pytmx
 import pyscroll
+import time
+import sys
+from player import *
+import menus
 
-pygame.init()
-
-screen = pygame.display.set_mode((1080,720))
-menu = ["New Game","Continue","Options","Quit"]
-caption = pygame.display.set_caption("Test du titre du jeu")
-menu_bg = pygame.transform.scale(pygame.image.load("Assets/Background/single_background.png").convert(),(1080,720))
-
-class Button() :
+class MainLoop():
     
-    def __init__(self,text,position,color,hovered) :
-        self.x, self.y = position
-        self.font = pygame.font.Font("Assets/Fonts/ARIAL.TTF",30)
-        self.color = color
-        self.text = self.font.render(text,1,color)
-        self.size = self.text.get_size()
-        self.surface = pygame.Surface(self.size)
-        self.rect = pygame.Rect(self.x, self.y, self.size[0], self.size[1])
-        self.rect[0] -= self.size[0]/2
-        self.hovered = hovered
-        
-    def draw(self) :
-        if self.hovered :
-            pygame.draw.rect(screen,"Grey",self.rect)
-            screen.blit(self.text,(self.x - self.size[0]/2, self.y))
-        else :
-            pygame.draw.rect(screen,"Black",self.rect)
-            screen.blit(self.text,(self.x - self.size[0]/2, self.y))
+    def __init__(self):
+        self.WIDTH, self.HEIGHT = 1355,720
+        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+        self.mouse = pygame.mouse.get_pos()
+        self.main_menu = menus.Main_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.game_bg = pygame.transform.scale(pygame.image.load("Assets/ENVIRONMENT/background/skyline.png"), (750*3, 240*3)).convert_alpha()
+        self.game_bg_rect = self.game_bg.get_rect()
+        self.game_bg_size = self.game_bg.get_size()
+        self.exit_menu = menus.Exit_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.settings_menu = menus.Settings_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.game_menu = menus.Game_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.game_running = False
+        self.player = Player((self.WIDTH/2., self.HEIGHT/2.), 3, 1)
+        self.map = pyscroll.data.TiledMapData(pytmx.util_pygame.load_pygame('map.tmx', pixelalpha=True))
+        self.map_layers = pyscroll.orthographic.BufferedRenderer(self.map,(self.screen.get_size()), alpha=True)
+        self.group = pyscroll.PyscrollGroup(map_layer = self.map_layers)
 
-def draw_text(screen,text,position,color) :
-    x,y = position
-    font = pygame.font.Font("Assets/Fonts/ARIAL.TTF",30)
-    text = font.render(text,2,color)
-    size = text.get_size()
-    surface = pygame.Surface(size)
-    rect = pygame.Rect(x, y, size[0], size[1])
-    rect[0] = rect[0] - size[0]/2
-    pygame.draw.rect(screen,"Black",rect)
-    screen.blit(text,(x - size[0]/2, y))
-    
-
-def options() :
-    running = True
-    while running:
+    def is_hovered(self,button):
         mouse = pygame.mouse.get_pos()
-        screen.blit(menu_bg, (0,0))
-        draw_text(screen,"Options",(540,50),"White")
-        luminosite = Button("Luminosité",(540,250),"White",hovered=False)
-        contraste = Button("Contraste",(540,300),"White",hovered=False)
-        test1 = Button("Test1",(540,350),"White",hovered=False)
-        test2 = Button("Test2",(540,400),"White",hovered=False)
-        test3 = Button("Test3",(540,450),"White",hovered=False)
-        return_back = Button("Return",(540,500),"White",hovered=False)
-        options_menu_buttons = [luminosite,contraste,test1,test2,test3,return_back]
-        luminosite.draw()
-        contraste.draw()
-        test1.draw()
-        test2.draw()
-        test3.draw()
-        return_back.draw()       
-        for options_menu_button in options_menu_buttons :
-            if options_menu_button.rect.collidepoint(mouse) :
-                options_menu_button.hovered = True
-                options_menu_button.draw()
-        for event in pygame.event.get() :
-            if event.type == pygame.QUIT :
-                pygame.quit()
-            if event.type == pygame.MOUSEBUTTONDOWN :
+        if button.rect.collidepoint(mouse):
+            button.hovered = True
+            self.main_menu.grey_continue()
+        else:
+            button.hovered = False
+        button.image = button.get_image()
+        button.draw()
+        
+    def game_menu_events(self):       
+        self.main_menu.is_hovered(self.game_menu.buttons)
+        for event1 in pygame.event.get():
+            mouse = pygame.mouse.get_pos()
+            if self.game_menu.menu_button.rect.collidepoint(mouse):
+                if event1.type == pygame.MOUSEBUTTONDOWN :
                     if pygame.mouse.get_pressed()[0] :
-                        if return_back.rect.collidepoint(mouse) :
-                            running = False
+                        if self.game_menu.menu_button.rect.collidepoint(mouse):
+                            self.game_menu.running = False
+                            self.game_running = False
+            else:
+                self.game_menu.manage_events(event1,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)             
+        
+    def manage_events(self,event):
+        if self.game_menu.running == False:
+            if event.type == pygame.QUIT:
+                self.game_running = False
+                self.running = False
+                
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.game_menu.running = True
+                
+                if event.key == pygame.K_q or pygame.K_d or event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT or event.key == pygame.K_SPACE :
+                    if self.player.is_jumping or self.player.is_slashing or self.player.is_blastering or self.player.is_running:
+                        pass
+                    else:
+                        self.player.new_anim = True
+                                                
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_q or event.key == pygame.K_LEFT\
+                    or event.key == pygame.K_d or event.key == pygame.K_RIGHT:
+                    self.player.is_running = False
+                
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pygame.mouse.get_pressed()[0] :
+                    if self.player.is_blastering or self.player.is_slashing:
+                        pass
+                    else:
+                        self.player.new_anim = True
+                        self.player.is_slashing = True
+                
+                    
+                if pygame.mouse.get_pressed()[2]:
+                    if self.player.is_slashing or self.player.is_blastering:
+                        pass
+                    else:
+                        self.player.new_anim = True
+                        self.player.is_blastering = True
+                    
+        
+    def manage_pressed_keys(self):
+        if self.game_menu.running == False:
+            pressed_key = pygame.key.get_pressed()
             
+            player_vector = [0,0]
+            bg_vector = [0,0]
+            
+            if pressed_key[pygame.K_q] or pressed_key[pygame.K_LEFT]:
+                if self.player.rect.center[0] <= self.WIDTH/2:
+                    if self.game_bg_rect.left == 0:
+                        if self.player.rect.left > 10:
+                            player_vector[0] -= 1
+                            bg_vector[0] = 0
+                        
+                    else:
+                        player_vector[0] = 0
+                        bg_vector[0] += 1
+                        
+                else:
+                    if self.game_bg_rect.left == 0:
+                        bg_vector[0] += 1
+                        player_vector[0] = 0
+                        
+                    else:
+                        player_vector[0] -= 1
+                        bg_vector[0] = 0
+                        
+                
+                
+                if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
+                    pass
+                else:
+                    if self.player.is_running:
+                        pass
+                    else:
+                        self.player.is_running = True
+                
+                if self.player.is_slashing == False and self.player.is_blastering == False:
+                    self.player.mirror = True
+
+                
+    
+            if pressed_key[pygame.K_d] or pressed_key[pygame.K_RIGHT]:
+                if self.player.rect.center[0] < self.WIDTH/2:
+                    if self.game_bg_rect.left == 0 :
+                            player_vector[0] += 1
+                            bg_vector[0] = 0
+                            
+                    else:
+                        bg_vector[0] -= 0
+                        player_vector[0] += 1
+                        
+                else:
+                    if self.game_bg_rect.right > self.WIDTH:
+                        bg_vector[0] -= 1
+                        player_vector[0] = 0
+                        
+                    else:
+                        if self.player.rect.right <= self.WIDTH - 10:
+                            player_vector[0] += 1
+                            bg_vector[0] = 0
+                            
+
+                
+                if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
+                    pass
+                else:
+                    if self.player.is_running:
+                        pass
+                    else:
+                        self.player.is_running = True
+                
+                if self.player.is_slashing == False and self.player.is_blastering == False:
+                    self.player.mirror = False
+                
+            if pressed_key[pygame.K_SPACE]:
+                
+                if self.player.is_slashing or self.player.is_blastering:
+                    self.player.is_jumping = True
+                else:
+                    if self.player.is_jumping == False:
+                        self.player.jump_sprite = 0
+                        self.player.tick = self.clock.get_time()
+                        self.player.y_origin = self.player.y
+                        self.player.is_jumping = True
+                        
+                    
+                    
+            if pygame.mouse.get_pressed()[0] :
+                if self.player.is_blastering:
+                    pass
+                else:
+                    self.player.is_slashing = True
+                
+                
+                    
+            if pygame.mouse.get_pressed()[2]:
+                if self.player.is_slashing:
+                    pass
+                else:
+                    self.player.is_blastering = True
+                
+            if self.player.is_jumping or self.player.is_blastering or self.player.is_slashing:
+                self.player.speed = 2
+            else:
+                self.player.speed = 5       
+            self.player.move(player_vector)
+            self.game_bg_move(bg_vector)
+        
+    def draw(self):
+        if self.game_running:
+            if self.game_bg_rect.left > 0:
+                self.game_bg_rect.left = 0
+            if self.game_bg_rect.left < self.WIDTH - self.game_bg_size[0]:
+                self.game_bg_rect.left = self.WIDTH - self.game_bg_size[0]
+            self.screen.blit(self.game_bg,(self.game_bg_rect[0],self.HEIGHT/2-self.game_bg_size[1]/2))
+            self.group.draw(self.screen)
+            self.screen.blit(self.player.image,self.player.rect)
+        else:
+            self.screen.blit(self.main_menu.menu_bg, (0,0))
+            self.main_menu.draw()
+            self.main_menu.game_logo.draw()
+            self.main_menu.menu_bg = self.main_menu.get_bg()
+
+        if self.game_menu.running:
+            self.game_menu.draw()
+
+    def update(self):
+        self.clock.tick(60)
+        if self.game_menu.running:
+            self.game_menu_events()
+        else:
+            self.player.update()
+        self.draw()
         pygame.display.update()
     
+    def game_bg_move(self, deplacement):
+        self.game_bg_rect[0] = self.game_bg_rect[0] + deplacement[0]*self.player.speed
     
-def game() :
-    running = True
-    tmx_data = pytmx.util_pygame.load_pygame('map.tmx')
-    map_data = pyscroll.data.TiledMapData(tmx_data)
-    map_layer = pyscroll.orthographic.BufferedRenderer(map_data,screen.get_size())
-    group = pyscroll.PyscrollGroup(map_layer=map_layer)
-    while running:
-        
-        mouse = pygame.mouse.get_pos()
-        group.draw(screen)
-        pygame.display.update()
-        for event in pygame.event.get() :
-            if event.type == pygame.QUIT :
-                pygame.quit()
-            if event.type == pygame.KEYDOWN :
-                if event.key == pygame.K_ESCAPE :
-                    running = False
-        
-        
-    
-    
-def run() :
-    running = True
-    while running :
-        mouse = pygame.mouse.get_pos()
-        screen.blit(menu_bg, (0,0))
-        draw_text(screen,"Mon jeu",(540,50),"White")
-        new_game_button = Button("New Game",(540,250),"White",hovered=False)
-        load_button = Button("Continue",(540,300),"White",hovered=False)
-        options_button = Button("Options",(540,350),"White",hovered=False)
-        quit_button = Button("Quit",(540,400),"White",hovered=False)
-        main_menu_buttons = [new_game_button,load_button,options_button,quit_button]
-        new_game_button.draw()
-        load_button.draw()
-        options_button.draw()
-        quit_button.draw()
-        for main_menu_button in main_menu_buttons :
-            if main_menu_button.rect.collidepoint(mouse) :
-                main_menu_button.hovered = True
-                main_menu_button.draw()
-        for event in pygame.event.get() :
-            if event.type == pygame.QUIT :
-                running = False
-            if event.type == pygame.MOUSEBUTTONDOWN :
+
+    def start(self):
+        pygame.init()
+        self.running = True
+
+        while self.running:
+            self.update()
+            mouse = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                
+                self.main_menu.manage_events(event,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)
+                self.draw()
+                pygame.display.update()
+                if event.type == pygame.MOUSEBUTTONDOWN :
                     if pygame.mouse.get_pressed()[0] :
-                        if quit_button.rect.collidepoint(mouse) :
-                            running = False
-                        if options_button.rect.collidepoint(mouse) :
-                            options()
-                        if new_game_button.rect.collidepoint(mouse) :
-                            game()
+                        if self.main_menu.new_game_button.rect.collidepoint(mouse):
+                            self.game_running = True
+                            self.run()
+        self.quit()
+        
+    def run(self):
+        self.player = Player((self.WIDTH/2., self.HEIGHT/2.), 3, 1)
+        self.screen.fill(0)
         pygame.display.update()
-    pygame.quit()
-
-    
-
-
-# def Main_Menu() :
-    
-#     def __init__(self,menu,color) :
-#         self.menu = menu
-#         self.new_game = Button("New Game",(540,150),"Black")
-#         self.load = Button("Continue",(540,180),"Black")
-#         self.options = Button("Options",(540,210),"Black")
-#         self.quit = Button("Quit",(540,240),"Black")
-    
-#     def draw(self) :
-#         self.new_game.draw()
-#         self.load.draw()
-#         self.options.draw()
-#         self.quit.draw()
+        time.sleep(0.5)
+        while self.game_running:
+            for event in pygame.event.get():
+                self.manage_events(event)
+            self.manage_pressed_keys()
+            self.update()
+            pygame.display.update()
             
             
+    def quit(self):
+        pygame.display.quit()
+        pygame.quit()
+        del self
+        sys.exit()
 
-
-
-# class Title() :
-    
-#     def __init__(self,text,position,color) :
-#         self.x, self.y = position
-#         self.font = pygame.font.Font("Assets/Fonts/ARIAL.TTF",60)
-#         self.color = color
-#         self.text = self.font.render(text,2,self.color)
-#         self.size = self.text.get_size()
-#         self.surface = pygame.Surface(self.size)
-#         self.rect = pygame.Rect(self.x, self.y, self.size[0], self.size[1])
         
-#     def draw(self) :
-#         screen.blit(self.text,(self.x - self.size[0]/2, self.y))
-        
-        
-# class Options() :
-    
-#     def __init__(self) :
-#         self.title = Title("Options",(540,50),"Black")
-#         self.luminosite = Button("Luminosité",(540,150),"Black")
-#         self.contraste = Button("Contraste",(540,150),"Black")
-#         self.test1 = Button("Test1",(540,150),"Black")
-#         self.test2 = Button("Test2",(540,150),"Black")
-#         self.test3 = Button("Test3",(540,150),"Black")
-#         self.returnback = Button("Return",(540,150),"Black")
-        
-#     def draw(self) :
-#         self.title.draw()
-#         self.luminosite.draw()
-#         self.contraste.draw()
-#         self.test1.draw()
-#         self.test2.draw()
-#         self.test3.draw()
-#         self.returnback.draw()
+            
+            
+            

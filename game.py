@@ -1,268 +1,151 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Aug 22 11:08:56 2021
-
-@author: marc
-"""
-
-
 import pygame
-import time
-from player import *
-import menus
+import player
+import commands
+import menu
+import enemy
+import camera
+import sys
 
-class MainLoop():
-    
+class Game():
+
     def __init__(self):
-        self.WIDTH, self.HEIGHT = 1920,1020
-        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        self.mouse = pygame.mouse.get_pos()
-        self.main_menu = menus.Main_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.game_bg = pygame.transform.scale(pygame.image.load("Assets/ENVIRONMENT/background/skyline.png"), (750*3, 240*3)).convert_alpha()
-        self.game_bg_rect = self.game_bg.get_rect()
-        self.game_bg_size = self.game_bg.get_size()
-        self.game_logo = menus.Game_Logo(self.screen,(self.WIDTH/2, self.HEIGHT*1/10))
-        self.exit_menu = menus.Exit_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.settings_menu = menus.Settings_Menu(self.screen, self.WIDTH, self.HEIGHT)
-        self.game_menu = menus.Game_Menu(self.screen, self.WIDTH, self.HEIGHT)
+        self.RESOLUTION = [1280,640]
+        self.screen = pygame.display.set_mode(self.RESOLUTION)
+        self.display = pygame.Surface((320,160))
+        self.display_rect = self.display.get_rect()
+        self.running = False
         self.clock = pygame.time.Clock()
-        self.running = True
-        self.game_running = False
-        self.player = Player((self.WIDTH/2., self.HEIGHT/2.), 3, 1)
-        
-    
-    def is_hovered(self,button):
-        mouse = pygame.mouse.get_pos()
-        if button.rect.collidepoint(mouse):
-            button.hovered = True
-            self.main_menu.grey_continue()
-        else:
-            button.hovered = False
-        button.image = button.get_image()
-        button.draw()
-        
-    def game_menu_events(self):       
-        self.main_menu.is_hovered(self.game_menu.buttons)
-        for event1 in pygame.event.get():
-            mouse = pygame.mouse.get_pos()
-            if self.game_menu.menu_button.rect.collidepoint(mouse):
-                if event1.type == pygame.MOUSEBUTTONDOWN :
-                    if pygame.mouse.get_pressed()[0] :
-                        if self.game_menu.menu_button.rect.collidepoint(mouse):
-                            self.game_menu.running = False
-                            self.game_running = False
-                                   
-            
-            else:
-                self.game_menu.manage_events(event1,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)             
-        
-    def manage_events(self,event):
-        if self.game_menu.running == False:
-            if event.type == pygame.QUIT:
-                self.game_running = False
-                self.running = False
-                
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.game_menu.running = True
-                
-                if event.key == pygame.K_q or pygame.K_d or event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT or event.key == pygame.K_SPACE :
-                    if self.player.is_jumping or self.player.is_slashing or self.player.is_blastering or self.player.is_running:
-                        pass
-                    else:
-                        self.player.new_anim = True
-                                                
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_q or event.key == pygame.K_LEFT\
-                    or event.key == pygame.K_d or event.key == pygame.K_RIGHT:
-                    self.player.is_running = False
-                    print("test")
-                
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if pygame.mouse.get_pressed()[0] :
-                    if self.player.is_blastering or self.player.is_slashing:
-                        pass
-                    else:
-                        self.player.new_anim = True
-                        self.player.is_slashing = True
-                
-                    
-                if pygame.mouse.get_pressed()[2]:
-                    if self.player.is_slashing or self.player.is_blastering:
-                        pass
-                    else:
-                        self.player.new_anim = True
-                        self.player.is_blastering = True
-                    
-        
-    def manage_pressed_keys(self):
-        if self.game_menu.running == False:
-            pressed_key = pygame.key.get_pressed()
-            
-            player_vector = [0,0]
-            bg_vector = [0,0]
-            
-            if pressed_key[pygame.K_q] or pressed_key[pygame.K_LEFT]:
-                if self.player.rect.center[0] <= self.WIDTH/2:
-                    if self.game_bg_rect.left == 0:
-                        if self.player.rect.left > 10:
-                            player_vector[0] -= 1
-                            bg_vector[0] = 0
-                        
-                    else:
-                        player_vector[0] = 0
-                        bg_vector[0] += 1
-                        
-                else:
-                    if self.game_bg_rect.left == 0:
-                        bg_vector[0] += 1
-                        player_vector[0] = 0
-                        
-                    else:
-                        player_vector[0] -= 1
-                        bg_vector[0] = 0
-                        
-                
-                self.player.mirror = True
-                if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
-                    pass
-                else:
-                    if self.player.is_running:
-                        pass
-                    else:
-                        self.player.is_running = True
-                
-                
-    
-            if pressed_key[pygame.K_d] or pressed_key[pygame.K_RIGHT]:
-                if self.player.rect.center[0] < self.WIDTH/2:
-                    if self.game_bg_rect.left == 0 :
-                            player_vector[0] += 1
-                            bg_vector[0] = 0
-                            
-                    else:
-                        bg_vector[0] -= 0
-                        player_vector[0] += 1
-                        
-                else:
-                    if self.game_bg_rect.right > self.WIDTH:
-                        bg_vector[0] -= 1
-                        player_vector[0] = 0
-                        
-                    else:
-                        if self.player.rect.right <= self.WIDTH - 10:
-                            player_vector[0] += 1
-                            bg_vector[0] = 0
-                            
+        self.player = player.Player(216,88)
+        self.commands = commands.Commands()
+        self.camera = camera.Camera()
+        self.game_map = self.load_map("map.txt")
+        self.grass = pygame.image.load("Assets\Sprites\Own\Perso\Grass.png")
+        self.dirt = pygame.image.load("Assets\Sprites\Own\Perso\Dirt.png")
+        self.tile_size = 16
+        self.air_timer = 0
+        self.y_momentum = 0
+        self.on_ground = True
+        self.gravity = 0.2
 
-                self.player.mirror = False
-                if self.player.is_slashing or self.player.is_blastering or self.player.is_jumping:
-                    pass
-                else:
-                    self.player.is_running = True
-                
-                
-            if pressed_key[pygame.K_SPACE]:
-                print("is_jumping : ", self.player.is_jumping)
-                if self.player.is_slashing or self.player.is_blastering:
-                    pass
-                else:
-                    if self.player.is_jumping == False:
-                        self.player.jump_sprite = 0
-                        self.player.tick = self.clock.get_time()
-                        self.player.y_origin = self.player.y
-                        self.player.is_jumping = True
-                        print("jump")
-                    
-                    
-            if pygame.mouse.get_pressed()[0] :
-                if self.player.is_blastering:
-                    pass
-                else:
-                    self.player.is_slashing = True
-                print("slash")
-                
-                    
-            if pygame.mouse.get_pressed()[2]:
-                if self.player.is_slashing:
-                    pass
-                else:
-                    self.player.is_blastering = True
-                
-            if self.player.is_jumping or self.player.is_blastering or self.player.is_slashing:
-                self.player.speed = 3
-            else:
-                self.player.speed = 10        
-            self.player.move(player_vector)
-            self.game_bg_move(bg_vector)
+    def load_map(self,path):
+        f = open(path, 'r')
+        data = f.read()
+        f.close()
+        data = data.split('\n')
+        game_map = []
+        for row in data:
+            game_map.append(list(row))
+        return game_map
+
+    def collision_test(self):
+        hit_list = []
+        for tile in self.tile_rects:
+            if self.player.collide_rect.colliderect(tile):
+                hit_list.append(tile)
+        return hit_list
+    
+    def move(self):
+        collision_types = {"Top" : False, "Bottom" : False, "Left" : False, "Right" : False}
+        self.player.collide_rect.x += self.player.speed * self.commands.player_vector[0]
+        self.player.update()
+        hit_list = self.collision_test()
+        for tile in hit_list:
+            if self.commands.player_vector[0] > 0:
+                self.player.collide_rect.right = tile.left
+                collision_types["Right"] = True
+                print("right")
+            elif self.commands.player_vector[0] < 0:
+                self.player.collide_rect.left = tile.right
+                collision_types["Left"] = True
+                print("left")
+        self.player.update()
+        if self.commands.jump == False:
+            self.y_momentum += self.gravity
+            if self.y_momentum > 3:
+                self.y_momentum = 3
+        self.commands.player_vector[1] = self.y_momentum
+        self.player.collide_rect.y += self.commands.player_vector[1]
+        self.player.update()
+        hit_list = self.collision_test()
+        for tile in hit_list:
+            if self.y_momentum > 0:
+                self.player.collide_rect.bottom = tile.top
+                collision_types["Bottom"] = True
+                self.commands.jump = False
+            elif self.y_momentum < 0:
+                self.player.collide_rect.top = tile.bottom
+                self.y_momentum = 0
+                collision_types["Top"] = True
+                print("top")
+        self.player.update()
+        if collision_types["Bottom"]:
+            self.y_momentum = 0
+            self.air_timer = 0
+            self.commands.jump = False
+        else:
+            self.air_timer += 1
+        
+               
+    def jump(self):
+        if self.commands.jump and self.air_timer == 0:
+            self.y_momentum = -5
+        if self.commands.jump:
+            self.y_momentum += self.gravity
+            if self.y_momentum > 3:
+                self.y_momentum = 3
+            
+
+    def draw_map(self):
+        self.display.fill((146,244,255))
+        y = 0
+        self.tile_rects = []
+        for row in self.game_map:
+            x = 0
+            for tile in row:
+                if tile == "1":
+                    self.display.blit(self.grass, (x * self.tile_size - int(self.camera.scroll[0]), y * self.tile_size - int(self.camera.scroll[1])))
+                if tile == "2":
+                    self.display.blit(self.dirt, (x * self.tile_size - int(self.camera.scroll[0]), y * self.tile_size - int(self.camera.scroll[1])))
+                if tile != "0":
+                    self.tile_rects.append(pygame.Rect(x * self.tile_size, y * self.tile_size, self.tile_size, self.tile_size))
+                x += 1
+            y += 1
         
     def draw(self):
-        if self.game_running:
-            if self.game_bg_rect.left > 0:
-                self.game_bg_rect.left = 0
-            if self.game_bg_rect.left < self.WIDTH - self.game_bg_size[0]:
-                self.game_bg_rect.left = self.WIDTH - self.game_bg_size[0]
-            self.screen.blit(self.game_bg,(self.game_bg_rect[0],self.HEIGHT/2-self.game_bg_size[1]/2))
-            self.screen.blit(self.player.image,self.player.rect)
-            print(self.game_bg_rect[0],self.WIDTH - self.game_bg_size[0])
-        if self.game_menu.running:
-            self.game_menu.draw()
+        self.display.blit(self.player.image,(self.player.rect[0] - int(self.camera.scroll[0]), self.player.rect[1] - int(self.camera.scroll[1])))
+        pygame.draw.rect(self.display,(255,0,0),(self.player.collide_rect[0]  - int(self.camera.scroll[0]), self.player.collide_rect[1] - int(self.camera.scroll[1]), self.player.collide_rect[2], self.player.collide_rect[3]),width = 1)
+        self.screen.blit(pygame.transform.scale(self.display,self.RESOLUTION),(0,0))
 
     def update(self):
-        if self.game_menu.running:
-            self.game_menu_events()
-        else:
-            self.player.update()
-
+        self.commands.loc_player = self.player.collide_rect.center
+        self.commands.update()
+        self.draw_map()
+        self.jump()
+        self.move()
+        self.player.update()
+        self.camera.loc_player = self.player.collide_rect.center
+        self.camera.update()
         self.draw()
-        pygame.display.update()
-    
-    def game_bg_move(self, deplacement):
-        self.game_bg_rect[0] = self.game_bg_rect[0] + deplacement[0]*self.player.speed
-    
 
     def start(self):
         pygame.init()
-        self.clock.tick(50)
         self.running = True
-        while self.running:
-            self.screen.blit(self.main_menu.menu_bg, (0,0))
-            self.main_menu.menu_bg = self.main_menu.get_bg()
-            self.game_logo.draw()
-            self.main_menu.draw()
-            pygame.display.update()
-            mouse = pygame.mouse.get_pos()
-            for event in pygame.event.get():
-                self.main_menu.manage_events(event,self.main_menu,self.settings_menu,self.exit_menu,self.game_menu)
-                pygame.display.update()
-                if event.type == pygame.MOUSEBUTTONDOWN :
-                    if pygame.mouse.get_pressed()[0] :
-                        if self.main_menu.new_game_button.rect.collidepoint(mouse):
-                            self.game_running = True
-                            self.run()
-        self.quit()
-        
+        self.run()
+
     def run(self):
-        self.player = Player((self.WIDTH/2., self.HEIGHT/2.), 3, 1)
-        self.screen.fill(0)
-        pygame.display.update()
-        time.sleep(0.5)
-        while self.game_running:
-            self.clock.tick(50)
+        while self.running:
+            self.clock.tick(60)
+            self.commands.game = True
             for event in pygame.event.get():
-                self.manage_events(event)
-            self.manage_pressed_keys()
+                if event.type == pygame.QUIT:
+                    self.running = False
             self.update()
-        pygame.display.update()
-            
-            
+            pygame.display.update()
+        self.quit()
+
     def quit(self):
         pygame.display.quit()
         pygame.quit()
         del self
-
-        
-            
-            
-            
+        sys.exit()
+    
