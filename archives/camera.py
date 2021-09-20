@@ -9,7 +9,7 @@ class Camera():
         self.lock_camera = pygame.Rect(0,0,320,160)
         self.x_locked = False
         self.y_locked = False
-        self.scroll = [0,0]
+        self.scroll = [56,8]
 
     def locking(self):
         if (self.scroll[0] <= 0 and self.loc_player[0] < 160) or (self.scroll[0] >= 320 and self.loc_player[0] > 480):
@@ -36,8 +36,6 @@ class Camera():
                 self.scroll[1] = 0
             if self.scroll[1] >= 80:
                 self.scroll[1] = 80
-
-
     
     def update(self):
         self.locking()
