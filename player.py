@@ -1,96 +1,92 @@
 import pygame
 import numpy as np
-from settings import TARGET_FPS, DISPLAY
+import os
+from settings import TARGET_FPS, DISPLAY, tile_size
 
 class Player(pygame.sprite.Sprite):
 
-    def __init__(self,x , y):
+    def __init__(self,x , y, max_health):
         super().__init__()
         self.pos = [x, y]
-        self.speed = 3
-        self.moving = pygame.math.Vector2(0,0)
+        self.speed = 5
+        self.health = max_health
+        self.max_health = max_health
+        self.attack = 1
+        self.attack_cooldown = 0
+        self.is_vulnerable_cooldown = 0
+        self.is_dead = False
+        self.is_shooting = False
+        self.is_vulnerable = True
         self.direction = pygame.math.Vector2(0,0)
-        self.image = pygame.image.load("Assets\Sprites\Own\Perso\char_3.png").convert_alpha()
+        self.shoot = pygame.math.Vector2(0,0)
+        self.image = pygame.image.load(os.getcwd()+"/Assets/Sprites/Own/Perso/char_3.png").convert_alpha()
         self.image.set_colorkey((255,255,255))
-        self.rect = self.image.get_rect(center = self.pos)
+        self.rect = self.image.get_rect(midbottom = self.pos)
     
     def get_inputs(self):
         self.direction = pygame.math.Vector2(0,0)
+        self.shoot = pygame.math.Vector2(0,0)
         pressed_key = pygame.key.get_pressed()
-
         if pressed_key[pygame.K_q]:
-            if self.rect.centerx <= 34:
-                self.direction.x = 0
-            else:
-                self.direction.x += -1
+            self.direction.x += -1
         if pressed_key[pygame.K_d]:
-            if self.rect.centerx >= 606:
-                self.direction.x = 0
-            else:
-                self.direction.x += 1
-
+            self.direction.x += 1
         if pressed_key[pygame.K_z]:
-            if self.rect.bottom <= 34:
-                self.direction.y = 0
-            else:
-                self.direction.y += -1
+            self.direction.y += -1
         if pressed_key[pygame.K_s]:
-            if self.rect.bottom >= 318:
-                self.direction.y = 0
-            else:
-                self.direction.y += 1
+            self.direction.y += 1
+        if pressed_key[pygame.K_LEFT]:
+            self.shoot.x += -1
+            self.is_shooting = True
+        elif pressed_key[pygame.K_RIGHT]:
+            self.shoot.x += 1
+            self.is_shooting = True
+        elif pressed_key[pygame.K_UP]:
+            self.shoot.y += -1
+            self.is_shooting = True
+        elif pressed_key[pygame.K_DOWN]:
+            self.shoot.y += 1
+            self.is_shooting = True
+        else:
+            self.is_shooting = False
 
-    def move(self, collide_function, dt):
+    def move(self, collide_function):
             collision_types = {"Top" : False, "Bottom" : False, "Left" : False, "Right" : False}
-            
-            lerp = pygame.math.Vector2.lerp(self.moving, self.direction, 0.2)
-            self.moving = lerp
             if self.direction == [1,1] or self.direction == [-1, 1] or self.direction == [-1, -1] or self.direction == [1, -1]:
                 norm = pygame.math.Vector2.length(self.direction)
             else:
                 norm = 1
-            if -0.2 < self.moving[0] < 0.2:
-                self.speed = 0
-            else:
-                self.speed = 3
-            if np.abs(self.moving[0]) > 0.99:
-                self.moving[0] = np.round(self.moving[0])
-            self.rect.centerx += 1/norm * self.moving[0] * self.speed
-            print(self.rect.center, 1/norm, self.direction, self.moving[0] * self.speed, lerp)
-            hit_list = collide_function()
+            self.rect.centerx += 1/norm * self.direction.x * self.speed
+            hit_list = collide_function(self.rect.midbottom)
             for tile in hit_list:
-                if lerp[0] > 0:
+                if self.direction.x > 0:
                     self.rect.centerx = tile.rect.left - 2
-                    lerp[0] = 0
-                    self.moving[0]
+                    self.direction.x = 0
                     collision_types["Right"] = True
-                elif lerp[0] < 0:
+                elif self.direction.x < 0:
                     self.rect.centerx = tile.rect.right + 2
-                    lerp[0] = 0
-                    self.moving[0]
+                    self.direction.x = 0
                     collision_types["Left"] = True
-
-            if -0.2 < lerp[1] < 0.2:
-                self.speed = 0
-            else:
-                self.speed = 5
-            self.rect.centery += 1/norm * self.moving[1] * self.speed
-            hit_list = collide_function()
+                    
+            self.rect.bottom += 1/norm * self.direction.y * self.speed
+            hit_list = collide_function(self.rect.midbottom)
             for tile in hit_list:
-                if lerp[1] > 0:
-                    self.rect.bottom = tile.rect.top - 2
-                    lerp[1] = 0
-                    self.moving[1]
+                if self.direction.y > 0:
+                    self.rect.bottom = tile.rect.top - 1
+                    self.direction.y = 0
                     collision_types["Bottom"] = True
-                elif lerp[1] < 0:
+                elif self.direction.y < 0:
                     self.rect.bottom = tile.rect.bottom + 2
-                    lerp[1] = 0
-                    self.moving[1]
+                    self.direction.y = 0
                     collision_types["Top"] = True
             
-
-    
-
-    def update(self, collide_function, dt):
+    def check_death(self):
+        if self.health <= 0:
+            self.health = 0
+            self.is_dead = True
+        
+    def update(self, collide_function):
         self.get_inputs()
-        self.move(collide_function, dt)
+        self.move(collide_function)
+        self.pos = self.rect.midbottom
+        self.check_death()

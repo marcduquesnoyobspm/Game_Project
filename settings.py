@@ -15,5 +15,7 @@ def load_map(path):
 
 room_layout = load_map("map.txt")
 
+floor_tile = "floor"
 wall_tile = "wall"
 corner_wall_tile = "corner_wall"
+rock_tile = "rock"
